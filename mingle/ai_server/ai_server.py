@@ -404,107 +404,215 @@ def on_startup():
 
 
 # Voice Note Processing
-class VoiceNoteRequest(BaseModel):
-    audio_base64: str
-    mime_type: str = "audio/webm"
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Voice Note Processing - Hackathon Demo
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class VoiceNoteRequest(BaseModel):
+    audio_base64: str = ""
+    mime_type: str = "audio/webm"
+    transcript: str = None  # Allow passing transcript directly for demo
 
 class VoiceNoteResponse(BaseModel):
     transcript: str
-    contact_name: str
-    action: str
-    email_draft: str
-    contact_email: str
-    status: str
+    contact_name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_role: Optional[str] = None  
+    contact_company: Optional[str] = None
+    email_subject: Optional[str] = None
+    email_body: Optional[str] = None
+    source: str = "hybrid"
+    tool_calls: list = []
+    status: str = "success"
+    error: Optional[str] = None
+
+
+def _lookup_contact_in_db(name: str) -> dict:
+    """Search for contact in Mingle database by name."""
+    import requests
+    try:
+        response = requests.get("http://localhost:3001/api/profiles", timeout=5)
+        profiles = response.json()
+        
+        name_lower = name.lower()
+        for profile in profiles:
+            if name_lower in profile.get("name", "").lower():
+                # Generate email from name and company
+                email = f"{profile['name'].lower().replace(' ', '.')}@{profile['company'].lower().replace(' ', '')}.com"
+                return {
+                    "found": True,
+                    "name": profile["name"],
+                    "role": profile["role"],
+                    "company": profile["company"],
+                    "email": email,
+                    "bio": profile.get("bio", "")
+                }
+        return {"found": False, "name": name}
+    except Exception as e:
+        return {"found": False, "error": str(e)}
+
+
+# Tools for FunctionGemma to call
+VOICE_NOTE_TOOLS = [
+    {
+        "name": "lookup_contact",
+        "description": "Look up a contact by name in the Mingle network database",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name of the contact to look up"}
+            },
+            "required": ["name"]
+        }
+    },
+    {
+        "name": "draft_email",
+        "description": "Draft a follow-up email after meeting someone",
+        "parameters": {
+            "type": "object", 
+            "properties": {
+                "to_name": {"type": "string", "description": "Recipient name"},
+                "topic": {"type": "string", "description": "What you discussed"},
+                "action": {"type": "string", "description": "Proposed next step"}
+            },
+            "required": ["to_name", "topic", "action"]
+        }
+    }
+]
 
 
 @app.post("/ai/process-voice-note")
 def process_voice_note(req: VoiceNoteRequest):
     """
-    Process a voice note:
-    1. Transcribe audio (mock for now - in production use Whisper)
-    2. Extract intent (who, action)
-    3. Look up contact
-    4. Draft email
+    Process voice note using FunctionGemma tool calling.
+    
+    Demo flow:
+    1. Get transcript (passed in or mock)
+    2. FunctionGemma extracts intent and calls tools
+    3. Execute tool calls (lookup contact, draft email)
+    4. Return structured response
     """
-    # Step 1: Mock transcription (in production, use Whisper or Google Speech-to-Text)
-    # For demo purposes, we'll use Gemini to "transcribe" from context
-    # In reality, you'd decode audio_base64 and send to a transcription API
+    # Step 1: Get transcript
+    if req.transcript:
+        transcript = req.transcript
+    else:
+        # Default demo transcript
+        transcript = "Really enjoyed meeting Maya and talking about design systems. Send an email to schedule a follow up meeting."
     
-    # Mock transcript - in real implementation, this would come from Whisper
-    mock_transcript = "Really enjoyed meeting Joe and talking about cactus. Send an email to schedule a follow up meeting."
+    tool_calls_log = []
+    contact_info = None
+    email_draft = None
+    source = "unknown"
     
-    # Step 2: Extract intent using FunctionGemma/Gemini
-    intent_messages = [{
-        "role": "user",
-        "content": (
-            f"Extract structured information from this voice note transcript: '{mock_transcript}'\n\n"
-            "Return JSON with: contact_name (first name only), action (what to do)"
-        )
-    }]
-    
-    intent_tools = [
-        {
-            "name": "extract_intent",
-            "description": "Extract contact name and action from voice note",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "contact_name": {"type": "string", "description": "First name of the person mentioned"},
-                    "action": {"type": "string", "description": "What action to take (e.g., schedule meeting, send email)"}
-                },
-                "required": ["contact_name", "action"]
+    try:
+        # Step 2: Use FunctionGemma to process the voice note
+        messages = [{
+            "role": "user",
+            "content": f"""Process this voice note and help me follow up:
+
+"{transcript}"
+
+First, look up the contact mentioned. Then draft a follow-up email."""
+        }]
+        
+        result = generate_hybrid(messages, VOICE_NOTE_TOOLS)
+        source = result.get("source", "hybrid")
+        
+        # Step 3: Execute tool calls
+        if result.get("tool_calls"):
+            for tc in result["tool_calls"]:
+                tool_name = tc.get("name", "")
+                tool_args = tc.get("arguments", {})
+                
+                if tool_name == "lookup_contact":
+                    name = tool_args.get("name", "")
+                    contact_info = _lookup_contact_in_db(name)
+                    tool_calls_log.append({"tool": "lookup_contact", "args": {"name": name}, "result": contact_info})
+                    
+                elif tool_name == "draft_email":
+                    to_name = tool_args.get("to_name", contact_info.get("name") if contact_info else "Friend")
+                    topic = tool_args.get("topic", "our conversation")
+                    action = tool_args.get("action", "schedule a follow-up")
+                    
+                    email_draft = {
+                        "subject": f"Great meeting you - {topic}",
+                        "body": f"""Hi {to_name},
+
+It was wonderful meeting you and discussing {topic}! I really enjoyed our conversation.
+
+I'd love to {action}. Would you be available sometime next week?
+
+Looking forward to staying in touch.
+
+Best regards"""
+                    }
+                    tool_calls_log.append({"tool": "draft_email", "args": tool_args, "result": email_draft})
+        
+        # Fallback: Try to extract contact name from transcript if no tool calls
+        if not contact_info:
+            import re
+            # Look for names after "meeting" or "met"
+            match = re.search(r'(?:meeting|met|with)\s+([A-Z][a-z]+)', transcript)
+            if match:
+                name = match.group(1)
+                contact_info = _lookup_contact_in_db(name)
+                tool_calls_log.append({"tool": "lookup_contact", "args": {"name": name}, "result": contact_info, "source": "fallback"})
+        
+        # Generate email if we have contact but no draft
+        if contact_info and contact_info.get("found") and not email_draft:
+            email_draft = {
+                "subject": f"Great meeting you, {contact_info['name']}!",
+                "body": f"""Hi {contact_info['name']},
+
+It was wonderful meeting you! I really enjoyed our conversation.
+
+I'd love to schedule a follow-up meeting. Would you be available sometime next week?
+
+Looking forward to staying in touch.
+
+Best regards"""
             }
-        }
-    ]
-    
-    intent_result = generate_hybrid(intent_messages, intent_tools)
-    contact_name = _safe_call(intent_result, "contact_name", "Joe")
-    action = _safe_call(intent_result, "action", "schedule meeting")
-    
-    # Step 3: Look up contact profile (search by name)
-    # In production, query the database for profiles matching the name
-    contact_email = "joe.thompson@cactus.ai"  # Hardcoded for demo
-    contact_company = "Cactus AI"
-    
-    # Step 4: Draft email using Gemini
-    draft_messages = [{
-        "role": "user",
-        "content": (
-            f"Draft a brief, warm email to {contact_name} at {contact_company} to follow up after a great conversation about Cactus. "
-            "Suggest scheduling a follow-up meeting. Keep it under 100 words, professional but friendly."
+        
+        return VoiceNoteResponse(
+            transcript=transcript,
+            contact_name=contact_info.get("name") if contact_info else None,
+            contact_email=contact_info.get("email") if contact_info else None,
+            contact_role=contact_info.get("role") if contact_info else None,
+            contact_company=contact_info.get("company") if contact_info else None,
+            email_subject=email_draft.get("subject") if email_draft else None,
+            email_body=email_draft.get("body") if email_draft else None,
+            source=source,
+            tool_calls=tool_calls_log,
+            status="success"
         )
-    }]
-    
-    draft_tools = [
-        {
-            "name": "draft_email",
-            "description": "Draft a follow-up email",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "subject": {"type": "string"},
-                    "body": {"type": "string"}
-                },
-                "required": ["subject", "body"]
-            }
-        }
-    ]
-    
-    draft_result = generate_hybrid(draft_messages, draft_tools)
-    email_subject = _safe_call(draft_result, "subject", f"Great meeting you, {contact_name}!")
-    email_body = _safe_call(draft_result, "body", 
-        f"Hi {contact_name},\n\nIt was wonderful meeting you and discussing Cactus! "
-        "I'd love to continue our conversation. Would you be available for a follow-up meeting next week?\n\nBest regards"
-    )
-    
-    email_draft = f"Subject: {email_subject}\n\n{email_body}"
-    
-    return {
-        "transcript": mock_transcript,
-        "contact_name": contact_name,
-        "action": action,
-        "email_draft": email_draft,
-        "contact_email": contact_email,
-        "status": "success"
-    }
+        
+    except Exception as e:
+        # Fallback to demo mode when API fails
+        try:
+            from voice_demo import process_voice_note_demo
+            demo_result = process_voice_note_demo(transcript)
+            contact = demo_result.get("contact") or {}
+            email = demo_result.get("email_draft") or {}
+            
+            return VoiceNoteResponse(
+                transcript=transcript,
+                contact_name=contact.get("name"),
+                contact_email=contact.get("email"),
+                contact_role=contact.get("role"),
+                contact_company=contact.get("company"),
+                email_subject=email.get("subject"),
+                email_body=email.get("body"),
+                source="demo-mode (API unavailable)",
+                tool_calls=demo_result.get("tool_calls", []),
+                status="success"
+            )
+        except Exception as demo_error:
+            return VoiceNoteResponse(
+                transcript=transcript,
+                status="error",
+                error=f"API: {str(e)}, Demo fallback: {str(demo_error)}",
+                tool_calls=tool_calls_log
+            )
+
+
