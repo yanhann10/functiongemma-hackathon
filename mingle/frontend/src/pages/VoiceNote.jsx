@@ -76,163 +76,350 @@ export default function VoiceNote() {
   }
 
   return (
-    <div style={{ maxWidth: "760px", margin: "0 auto", padding: "40px 20px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "28px" }}>
+    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "32px" }}>
         <button onClick={() => navigate("/")} style={backBtn}>← Home</button>
-        <h1 style={{ fontSize: "1.8rem", fontWeight: 800 }}>🎤 Voice Note</h1>
+        <h1 style={{ fontSize: "2rem", fontWeight: 800 }}>
+          <span style={{ marginRight: "12px" }}>🎤</span>
+          <span className="gradient-text">Voice Note</span>
+        </h1>
       </div>
 
-      <div style={{
-        background: "#fff",
-        borderRadius: "14px",
-        padding: "32px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.07)",
-        marginBottom: "24px",
-      }}>
-        <p style={{ color: "#666", marginBottom: "24px", lineHeight: 1.6 }}>
-          Record a voice note like: <em>"Really enjoyed meeting Joe and talking about Cactus. Send an email to schedule a follow-up meeting."</em>
+      {/* Recording Card */}
+      <div style={cardStyle}>
+        <p style={{ color: "#64748b", marginBottom: "24px", lineHeight: 1.7, fontSize: "15px" }}>
+          Record a quick voice memo after meeting someone. Mingle will identify the contact, 
+          extract key details, and draft a follow-up email automatically.
         </p>
 
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "20px" }}>
+        <div style={{ 
+          background: "#f8fafc", 
+          borderRadius: "12px", 
+          padding: "20px", 
+          marginBottom: "24px",
+          border: "1px dashed #e2e8f0"
+        }}>
+          <p style={{ fontSize: "14px", color: "#94a3b8", marginBottom: "8px" }}>Example:</p>
+          <p style={{ fontStyle: "italic", color: "#475569", lineHeight: 1.6 }}>
+            "Really enjoyed meeting Maya and talking about design systems. 
+            Send an email to schedule a follow up meeting."
+          </p>
+        </div>
+
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           {!isRecording && !audioBlob && (
             <button onClick={startRecording} style={recordBtn}>
-              🎙️ Start Recording
+              <span style={{ fontSize: "20px", marginRight: "8px" }}>🎙️</span>
+              Start Recording
             </button>
           )}
 
           {isRecording && (
             <>
-              <button onClick={stopRecording} style={stopBtn}>
-                ⏹️ Stop Recording
+              <button onClick={stopRecording} style={stopBtn} className="recording-btn">
+                <span style={{ fontSize: "20px", marginRight: "8px" }}>⏹️</span>
+                Stop Recording
               </button>
-              <span style={{ color: "#e74c3c", fontWeight: 600, animation: "pulse 1.5s infinite" }}>
-                ● Recording...
-              </span>
+              <div className="recording-indicator" style={{ 
+                display: "flex", 
+                alignItems: "center", 
+                gap: "8px",
+                color: "#dc2626",
+                fontWeight: 600
+              }}>
+                <span style={{ 
+                  width: "12px", 
+                  height: "12px", 
+                  background: "#dc2626", 
+                  borderRadius: "50%",
+                  display: "inline-block"
+                }}></span>
+                Recording...
+              </div>
             </>
           )}
 
           {audioBlob && !result && (
             <>
               <button onClick={processVoiceNote} disabled={loading} style={processBtn}>
-                {loading ? "Processing..." : "✨ Process Voice Note"}
+                {loading ? (
+                  <>
+                    <span style={{ marginRight: "8px" }}>⏳</span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <span style={{ marginRight: "8px" }}>✨</span>
+                    Process with AI
+                  </>
+                )}
               </button>
-              <button onClick={reset} style={resetBtn}>Reset</button>
+              <button onClick={reset} style={resetBtn}>Cancel</button>
             </>
           )}
         </div>
+      </div>
 
-        {error && (
-          <div style={{ padding: "12px 16px", background: "#fde8e8", borderRadius: "8px", color: "#c0392b", marginTop: "16px" }}>
-            {error}
+      {/* Error */}
+      {error && (
+        <div className="fade-in" style={errorStyle}>
+          <span style={{ marginRight: "8px" }}>⚠️</span>
+          {error.length > 100 ? error.substring(0, 100) + "..." : error}
+        </div>
+      )}
+
+      {/* Results */}
+      {result && (
+        <div className="fade-in">
+          {/* AI Pipeline Steps */}
+          <div style={{ marginBottom: "24px" }}>
+            <h3 style={{ fontSize: "14px", fontWeight: 600, color: "#64748b", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              AI Pipeline
+            </h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {result.tool_calls?.map((tc, i) => (
+                <div key={i} className="tool-badge">
+                  <span>{tc.tool === "extract_intent" ? "🧠" : tc.tool === "lookup_contact" ? "🔍" : "✉️"}</span>
+                  {tc.tool.replace(/_/g, " ")}
+                  <span style={{ color: "#6366f1", fontSize: "10px" }}>({tc.source?.split(" ")[0]})</span>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
 
-        {result && (
-          <div style={{ marginTop: "24px" }}>
-            <div style={{
-              padding: "16px",
-              background: "#e8f5e9",
-              borderRadius: "8px",
-              marginBottom: "16px",
-            }}>
-              <div style={{ fontWeight: 700, color: "#2e7d32", marginBottom: "8px" }}>✅ Processed Successfully!</div>
-              <p style={{ margin: "6px 0", fontSize: "0.9rem" }}><strong>Transcript:</strong> {result.transcript}</p>
-              <p style={{ margin: "6px 0", fontSize: "0.9rem" }}><strong>Contact:</strong> {result.contact_name}</p>
-              <p style={{ margin: "6px 0", fontSize: "0.9rem" }}><strong>Action:</strong> {result.action}</p>
-            </div>
-
-            <div style={{
-              padding: "20px",
-              background: "#f5f5f5",
-              borderRadius: "8px",
-              border: "1px solid #ddd",
-            }}>
-              <div style={{ fontWeight: 700, marginBottom: "12px", color: "#444" }}>📧 Email Draft</div>
-              <div style={{ fontSize: "0.85rem", color: "#666", marginBottom: "4px" }}>
-                To: {result.contact_email}
+          {/* Contact Found Card */}
+          {result.contact_name && (
+            <div style={contactCardStyle}>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                <div style={avatarStyle}>
+                  {result.contact_name?.charAt(0)}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: "18px", fontWeight: 700, color: "#1e293b", marginBottom: "4px" }}>
+                    {result.contact_name}
+                  </h3>
+                  <p style={{ fontSize: "14px", color: "#64748b" }}>
+                    {result.contact_role} @ {result.contact_company}
+                  </p>
+                  <p style={{ fontSize: "13px", color: "#6366f1", marginTop: "4px" }}>
+                    📧 {result.contact_email}
+                  </p>
+                </div>
               </div>
-              <pre style={{
-                whiteSpace: "pre-wrap",
-                fontFamily: "'Georgia', serif",
-                fontSize: "0.95rem",
-                lineHeight: 1.6,
-                color: "#333",
-                margin: 0,
-              }}>
-                {result.email_draft}
-              </pre>
             </div>
+          )}
 
-            <button onClick={reset} style={{ ...resetBtn, marginTop: "16px" }}>
+          {/* Email Preview */}
+          {result.email_body && (
+            <div className="email-preview" style={{ marginTop: "20px" }}>
+              <div className="email-header">
+                <div style={{ fontSize: "12px", opacity: 0.8, marginBottom: "4px" }}>TO: {result.contact_email}</div>
+                <div style={{ fontSize: "16px", fontWeight: 600 }}>📧 {result.email_subject}</div>
+              </div>
+              <div className="email-body">
+                <pre style={{ 
+                  whiteSpace: "pre-wrap", 
+                  fontFamily: "inherit",
+                  margin: 0,
+                  fontSize: "15px"
+                }}>
+                  {result.email_body}
+                </pre>
+              </div>
+              <div style={{ 
+                padding: "16px 24px", 
+                borderTop: "1px solid #e2e8f0",
+                display: "flex",
+                gap: "12px"
+              }}>
+                <button style={sendBtn}>
+                  <span style={{ marginRight: "6px" }}>📤</span>
+                  Send Email
+                </button>
+                <button style={editBtn}>
+                  <span style={{ marginRight: "6px" }}>✏️</span>
+                  Edit Draft
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Source Badge */}
+          <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ 
+              fontSize: "12px", 
+              color: "#94a3b8",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
+            }}>
+              <span style={{ 
+                width: "8px", 
+                height: "8px", 
+                background: result.source?.includes("demo") ? "#f59e0b" : "#10b981",
+                borderRadius: "50%"
+              }}></span>
+              {result.source}
+            </div>
+            <button onClick={reset} style={resetBtn}>
               🎙️ Record Another
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div style={{
-        padding: "16px",
-        background: "#fffbea",
-        borderRadius: "8px",
-        border: "1px solid #ffd700",
-        fontSize: "0.85rem",
-        color: "#856404",
-      }}>
-        <strong>💡 How it works:</strong> Your voice note is transcribed using AI, then Mingle analyzes it to identify the contact and action. An email draft is generated automatically using FunctionGemma (on-device) with Gemini fallback.
-      </div>
+      {/* Info Box */}
+      {!result && (
+        <div style={infoBoxStyle}>
+          <strong>💡 How it works:</strong>
+          <ol style={{ marginTop: "12px", paddingLeft: "20px", lineHeight: 1.8 }}>
+            <li><strong>Extract Intent</strong> — AI identifies the contact name and action</li>
+            <li><strong>Lookup Contact</strong> — Searches your Mingle network database</li>
+            <li><strong>Draft Email</strong> — Generates a personalized follow-up message</li>
+          </ol>
+          <p style={{ marginTop: "12px", fontSize: "13px", color: "#6b7280" }}>
+            Powered by FunctionGemma (on-device) with Gemini Cloud fallback
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
+const cardStyle = {
+  background: "#fff",
+  borderRadius: "16px",
+  padding: "32px",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+  marginBottom: "24px",
+};
+
 const backBtn = {
-  padding: "6px 14px",
-  background: "none",
-  border: "1px solid #ddd",
+  padding: "8px 16px",
+  background: "#f1f5f9",
+  border: "none",
   borderRadius: "8px",
   cursor: "pointer",
-  color: "#555",
-  fontSize: "0.85rem",
+  color: "#475569",
+  fontSize: "14px",
+  fontWeight: 500,
+  transition: "all 0.2s",
 };
 
 const recordBtn = {
-  padding: "12px 24px",
-  background: "#e74c3c",
+  padding: "14px 28px",
+  background: "linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)",
   color: "#fff",
   border: "none",
-  borderRadius: "8px",
-  fontWeight: 700,
+  borderRadius: "12px",
+  fontWeight: 600,
   cursor: "pointer",
-  fontSize: "1rem",
+  fontSize: "15px",
+  display: "flex",
+  alignItems: "center",
+  transition: "all 0.2s",
 };
 
 const stopBtn = {
-  padding: "12px 24px",
-  background: "#34495e",
+  padding: "14px 28px",
+  background: "linear-gradient(135deg, #374151 0%, #1f2937 100%)",
   color: "#fff",
   border: "none",
-  borderRadius: "8px",
-  fontWeight: 700,
+  borderRadius: "12px",
+  fontWeight: 600,
   cursor: "pointer",
-  fontSize: "1rem",
+  fontSize: "15px",
+  display: "flex",
+  alignItems: "center",
 };
 
 const processBtn = {
-  padding: "12px 24px",
-  background: "#6c63ff",
+  padding: "14px 28px",
+  background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
   color: "#fff",
   border: "none",
-  borderRadius: "8px",
-  fontWeight: 700,
+  borderRadius: "12px",
+  fontWeight: 600,
   cursor: "pointer",
-  fontSize: "1rem",
+  fontSize: "15px",
+  display: "flex",
+  alignItems: "center",
+  transition: "all 0.2s",
 };
 
 const resetBtn = {
-  padding: "8px 16px",
-  background: "none",
-  border: "1px solid #ddd",
+  padding: "10px 20px",
+  background: "#f1f5f9",
+  border: "none",
   borderRadius: "8px",
   cursor: "pointer",
-  color: "#555",
-  fontSize: "0.9rem",
+  color: "#64748b",
+  fontSize: "14px",
+  fontWeight: 500,
+};
+
+const errorStyle = {
+  padding: "16px 20px",
+  background: "#fef2f2",
+  borderRadius: "12px",
+  color: "#dc2626",
+  marginBottom: "24px",
+  fontSize: "14px",
+};
+
+const contactCardStyle = {
+  background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+  borderRadius: "16px",
+  padding: "24px",
+  border: "1px solid #bbf7d0",
+};
+
+const avatarStyle = {
+  width: "56px",
+  height: "56px",
+  borderRadius: "14px",
+  background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "24px",
+  fontWeight: 700,
+};
+
+const sendBtn = {
+  padding: "10px 20px",
+  background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  fontWeight: 600,
+  cursor: "pointer",
+  fontSize: "14px",
+  display: "flex",
+  alignItems: "center",
+};
+
+const editBtn = {
+  padding: "10px 20px",
+  background: "white",
+  color: "#475569",
+  border: "1px solid #e2e8f0",
+  borderRadius: "8px",
+  fontWeight: 500,
+  cursor: "pointer",
+  fontSize: "14px",
+  display: "flex",
+  alignItems: "center",
+};
+
+const infoBoxStyle = {
+  padding: "24px",
+  background: "linear-gradient(135deg, #fefce8 0%, #fef9c3 100%)",
+  borderRadius: "16px",
+  border: "1px solid #fde047",
+  fontSize: "14px",
+  color: "#713f12",
+  lineHeight: 1.6,
 };
