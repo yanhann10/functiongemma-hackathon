@@ -5,6 +5,7 @@ const profilesRouter = require("./routes/profiles");
 const networkRouter = require("./routes/network");
 const qrRouter = require("./routes/qr");
 const outreachRouter = require("./routes/outreach");
+const voicenotesRouter = require("./routes/voicenotes");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -16,6 +17,7 @@ app.use("/api/profiles", profilesRouter);
 app.use("/api/network", networkRouter);
 app.use("/api/qr", qrRouter);
 app.use("/api/outreach", outreachRouter);
+app.use("/api/voicenotes", voicenotesRouter);
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 

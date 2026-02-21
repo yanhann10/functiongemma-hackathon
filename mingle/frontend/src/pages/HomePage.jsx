@@ -42,7 +42,7 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center" }}>
+      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1100px" }}>
         <button style={{ ...ctaStyle, borderTop: "4px solid #6c63ff" }} onClick={() => navigate("/create")}>
           <span style={{ fontSize: "2.5rem" }}>+</span>
           <strong style={{ marginTop: "12px", fontSize: "1rem" }}>Create Profile</strong>
@@ -64,6 +64,14 @@ export default function HomePage() {
           <strong style={{ marginTop: "12px", fontSize: "1rem" }}>Smart Query</strong>
           <span style={{ fontSize: "0.85rem", color: "#888", marginTop: "6px" }}>
             AI-ranked connection discovery
+          </span>
+        </button>
+
+        <button style={{ ...ctaStyle, borderTop: "4px solid #e74c3c" }} onClick={() => navigate("/voice-note")}>
+          <span style={{ fontSize: "2.5rem" }}>🎤</span>
+          <strong style={{ marginTop: "12px", fontSize: "1rem" }}>Voice Note</strong>
+          <span style={{ fontSize: "0.85rem", color: "#888", marginTop: "6px" }}>
+            Quick voice-to-email follow-ups
           </span>
         </button>
       </div>

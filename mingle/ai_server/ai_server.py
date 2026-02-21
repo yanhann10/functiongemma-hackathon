@@ -401,3 +401,110 @@ def sync_profile_rag(req: SyncProfileRequest):
 def on_startup():
     os.makedirs(RAG_CORPUS_DIR, exist_ok=True)
     _load_rag_model()
+
+
+# Voice Note Processing
+class VoiceNoteRequest(BaseModel):
+    audio_base64: str
+    mime_type: str = "audio/webm"
+
+
+class VoiceNoteResponse(BaseModel):
+    transcript: str
+    contact_name: str
+    action: str
+    email_draft: str
+    contact_email: str
+    status: str
+
+
+@app.post("/ai/process-voice-note")
+def process_voice_note(req: VoiceNoteRequest):
+    """
+    Process a voice note:
+    1. Transcribe audio (mock for now - in production use Whisper)
+    2. Extract intent (who, action)
+    3. Look up contact
+    4. Draft email
+    """
+    # Step 1: Mock transcription (in production, use Whisper or Google Speech-to-Text)
+    # For demo purposes, we'll use Gemini to "transcribe" from context
+    # In reality, you'd decode audio_base64 and send to a transcription API
+    
+    # Mock transcript - in real implementation, this would come from Whisper
+    mock_transcript = "Really enjoyed meeting Joe and talking about cactus. Send an email to schedule a follow up meeting."
+    
+    # Step 2: Extract intent using FunctionGemma/Gemini
+    intent_messages = [{
+        "role": "user",
+        "content": (
+            f"Extract structured information from this voice note transcript: '{mock_transcript}'\n\n"
+            "Return JSON with: contact_name (first name only), action (what to do)"
+        )
+    }]
+    
+    intent_tools = [
+        {
+            "name": "extract_intent",
+            "description": "Extract contact name and action from voice note",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "contact_name": {"type": "string", "description": "First name of the person mentioned"},
+                    "action": {"type": "string", "description": "What action to take (e.g., schedule meeting, send email)"}
+                },
+                "required": ["contact_name", "action"]
+            }
+        }
+    ]
+    
+    intent_result = generate_hybrid(intent_messages, intent_tools)
+    contact_name = _safe_call(intent_result, "contact_name", "Joe")
+    action = _safe_call(intent_result, "action", "schedule meeting")
+    
+    # Step 3: Look up contact profile (search by name)
+    # In production, query the database for profiles matching the name
+    contact_email = "joe.thompson@cactus.ai"  # Hardcoded for demo
+    contact_company = "Cactus AI"
+    
+    # Step 4: Draft email using Gemini
+    draft_messages = [{
+        "role": "user",
+        "content": (
+            f"Draft a brief, warm email to {contact_name} at {contact_company} to follow up after a great conversation about Cactus. "
+            "Suggest scheduling a follow-up meeting. Keep it under 100 words, professional but friendly."
+        )
+    }]
+    
+    draft_tools = [
+        {
+            "name": "draft_email",
+            "description": "Draft a follow-up email",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "subject": {"type": "string"},
+                    "body": {"type": "string"}
+                },
+                "required": ["subject", "body"]
+            }
+        }
+    ]
+    
+    draft_result = generate_hybrid(draft_messages, draft_tools)
+    email_subject = _safe_call(draft_result, "subject", f"Great meeting you, {contact_name}!")
+    email_body = _safe_call(draft_result, "body", 
+        f"Hi {contact_name},\n\nIt was wonderful meeting you and discussing Cactus! "
+        "I'd love to continue our conversation. Would you be available for a follow-up meeting next week?\n\nBest regards"
+    )
+    
+    email_draft = f"Subject: {email_subject}\n\n{email_body}"
+    
+    return {
+        "transcript": mock_transcript,
+        "contact_name": contact_name,
+        "action": action,
+        "email_draft": email_draft,
+        "contact_email": contact_email,
+        "status": "success"
+    }
