@@ -595,15 +595,19 @@ Best regards"""
             contact = demo_result.get("contact") or {}
             email = demo_result.get("email_draft") or {}
             
+            contact = demo_result.get("contact") or {}
+            output = demo_result.get("output") or {}
+            intent = demo_result.get("intent") or {}
+            
             return VoiceNoteResponse(
                 transcript=transcript,
                 contact_name=contact.get("name"),
                 contact_email=contact.get("email"),
                 contact_role=contact.get("role"),
                 contact_company=contact.get("company"),
-                email_subject=email.get("subject"),
-                email_body=email.get("body"),
-                source="demo-mode (API unavailable)",
+                email_subject=output.get("subject") if output.get("type") == "email" else None,
+                email_body=output.get("body") if output.get("type") == "email" else output.get("message"),
+                source=f"demo-mode ({intent.get('action_type', 'email')})",
                 tool_calls=demo_result.get("tool_calls", []),
                 status="success"
             )
