@@ -113,6 +113,11 @@ export default function CreateProfile() {
     return (val) => setForm((prev) => ({ ...prev, [field]: val }));
   }
 
+  // Generate LinkedIn placeholder based on name
+  const linkedinPlaceholder = form.name 
+    ? `https://linkedin.com/in/${form.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}`
+    : "https://linkedin.com/in/your-profile";
+
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
@@ -262,7 +267,7 @@ export default function CreateProfile() {
             style={inputStyle}
             value={form.linkedin_url}
             onChange={(e) => set("linkedin_url")(e.target.value)}
-            placeholder="https://linkedin.com/in/your-profile"
+            placeholder={linkedinPlaceholder}
             type="url"
           />
         </div>
