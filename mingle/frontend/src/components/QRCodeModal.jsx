@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom";
+
 export default function QRCodeModal({ qr, url, onClose }) {
+  const navigate = useNavigate();
   if (!qr) return null;
 
   return (
@@ -29,16 +32,30 @@ export default function QRCodeModal({ qr, url, onClose }) {
             {url}
           </p>
         )}
-        <button
-          onClick={onClose}
-          style={{
-            marginTop: "20px", padding: "8px 24px",
-            background: "#1a1a2e", color: "#fff",
-            border: "none", borderRadius: "8px", cursor: "pointer",
-          }}
-        >
-          Close
-        </button>
+        <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "20px" }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: "8px 24px",
+              background: "#f1f5f9", color: "#475569",
+              border: "none", borderRadius: "8px", cursor: "pointer",
+              fontWeight: 500,
+            }}
+          >
+            Close
+          </button>
+          <button
+            onClick={() => navigate("/")}
+            style={{
+              padding: "8px 24px",
+              background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)", color: "#fff",
+              border: "none", borderRadius: "8px", cursor: "pointer",
+              fontWeight: 500,
+            }}
+          >
+            ← Home
+          </button>
+        </div>
       </div>
     </div>
   );

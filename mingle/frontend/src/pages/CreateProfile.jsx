@@ -213,7 +213,7 @@ export default function CreateProfile() {
               value={form[field]}
               onChange={(e) => set(field)(e.target.value)}
               placeholder={placeholder}
-              required
+              
             />
           </div>
         ))}
@@ -226,7 +226,7 @@ export default function CreateProfile() {
             onChange={(e) => set("bio")(e.target.value)}
             placeholder="A brief description of what you're working on…"
             rows={3}
-            required
+            
           />
         </div>
 
