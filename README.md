@@ -1,4 +1,4 @@
-<img src="assets/banner.png" alt="Logo" style="border-radius: 30px; width: 100%;">
+Demo: https://www.youtube.com/watch?v=G7DGVyOK7LQ
 
 ## Context
 - Cactus runs Google DeepMind's FunctionGemma at up to 3000 toks/sec prefill speed on M4 Macs.
